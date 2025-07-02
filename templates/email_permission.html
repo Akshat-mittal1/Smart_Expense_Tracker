@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+
+{% block title %}Email Notifications - Expense Tracker{% endblock %}
+
+{% block content %}
+<div class="auth-container">
+    <div class="auth-card">
+        <div class="auth-header">
+            <h1>Email Notifications</h1>
+            <p>Would you like to receive monthly budget tracking emails?</p>
+        </div>
+        
+        <form method="POST" class="auth-form">
+            <div class="form-group">
+                <div class="radio-group">
+                    <label class="radio-label">
+                        <input type="radio" name="allow_emails" value="yes">
+                        <span>Yes, send me monthly budget updates</span>
+                    </label>
+                    <label class="radio-label">
+                        <input type="radio" name="allow_emails" value="no" checked>
+                        <span>No, I'll check manually</span>
+                    </label>
+                </div>
+            </div>
+            
+            <button type="submit" class="btn btn-primary">Continue to Dashboard</button>
+        </form>
+    </div>
+</div>
+{% endblock %}
