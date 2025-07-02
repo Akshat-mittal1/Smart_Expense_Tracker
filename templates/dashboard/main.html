@@ -1,0 +1,97 @@
+{% extends "dashboard/base.html" %}
+
+{% block title %}Dashboard - Expense Tracker{% endblock %}
+
+{% block content %}
+<div class="welcome-section">
+    <h1>Welcome back, {{ session.username }}!</h1>
+    <p>Here's your financial overview for this month</p>
+</div>
+
+<div class="summary-cards">
+    <div class="summary-card income">
+        <div class="card-icon">
+            <i class="fas fa-arrow-up"></i>
+        </div>
+        <div class="card-content">
+            <h3>Total Income</h3>
+            <p class="amount" id="totalIncome">₹0.00</p>
+            <small>This Month</small>
+        </div>
+    </div>
+    <div class="summary-card expense">
+        <div class="card-icon">
+            <i class="fas fa-arrow-down"></i>
+        </div>
+        <div class="card-content">
+            <h3>Total Expense</h3>
+            <p class="amount" id="totalExpense">₹0.00</p>
+            <small>This Month</small>
+        </div>
+    </div>
+    <div class="summary-card saving">
+        <div class="card-icon">
+            <i class="fas fa-piggy-bank"></i>
+        </div>
+        <div class="card-content">
+            <h3>Total Saving</h3>
+            <p class="amount" id="totalSaving">₹0.00</p>
+            <small>This Month</small>
+        </div>
+    </div>
+</div>
+
+<div class="quick-actions">
+    <h2>Quick Actions</h2>
+    <div class="action-buttons">
+        <a href="/dashboard/records" class="action-btn">
+            <i class="fas fa-plus"></i>
+            <span>Add Transaction</span>
+        </a>
+        <a href="/dashboard/budget" class="action-btn">
+            <i class="fas fa-wallet"></i>
+            <span>Set Budget</span>
+        </a>
+        <a href="/dashboard/analysis" class="action-btn">
+            <i class="fas fa-chart-pie"></i>
+            <span>View Analysis</span>
+        </a>
+        <a href="/dashboard/account" class="action-btn">
+            <i class="fas fa-credit-card"></i>
+            <span>Manage Accounts</span>
+        </a>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    loadDashboardData();
+});
+
+async function loadDashboardData() {
+    try {
+        const response = await fetch('/api/dashboard_data');
+        const data = await response.json();
+        
+        document.getElementById('totalIncome').textContent = formatCurrency(data.total_income);
+        document.getElementById('totalExpense').textContent = formatCurrency(data.total_expense);
+        document.getElementById('totalSaving').textContent = formatCurrency(data.total_saving);
+        
+        // Update saving color
+        const savingElement = document.getElementById('totalSaving');
+        savingElement.className = `amount ${data.total_saving >= 0 ? 'text-success' : 'text-danger'}`;
+    } catch (error) {
+        console.error('Failed to load dashboard data:', error);
+    }
+}
+
+function formatCurrency(amount) {
+    return new Intl.NumberFormat('en-IN', {
+        style: 'currency',
+        currency: 'INR',
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2
+    }).format(amount);
+}
+</script>
+{% endblock %}
