@@ -1,0 +1,368 @@
+{% extends "dashboard/base.html" %}
+
+{% block page_title %}Records{% endblock %}
+
+{% block content %}
+<div class="summary-cards">
+    <div class="summary-card income">
+        <div class="card-icon">
+            <i class="fas fa-arrow-up"></i>
+        </div>
+        <div class="card-content">
+            <h3>Total Income</h3>
+            <p class="amount" id="totalIncome">₹0.00</p>
+            <small>This Month</small>
+        </div>
+    </div>
+    <div class="summary-card expense">
+        <div class="card-icon">
+            <i class="fas fa-arrow-down"></i>
+        </div>
+        <div class="card-content">
+            <h3>Total Expense</h3>
+            <p class="amount" id="totalExpense">₹0.00</p>
+            <small>This Month</small>
+        </div>
+    </div>
+    <div class="summary-card saving">
+        <div class="card-icon">
+            <i class="fas fa-piggy-bank"></i>
+        </div>
+        <div class="card-content">
+            <h3>Total Saving</h3>
+            <p class="amount" id="totalSaving">₹0.00</p>
+            <small>This Month</small>
+        </div>
+    </div>
+</div>
+
+<div class="transactions-section">
+    <div class="section-header">
+        <h2>Recent Transactions</h2>
+        <button class="btn btn-primary" onclick="openModal('addTransactionModal')">
+            <i class="fas fa-plus"></i>
+            Add Transaction
+        </button>
+    </div>
+    <div class="transactions-list" id="transactionsList">
+        <div class="loading-message">Loading transactions...</div>
+    </div>
+</div>
+
+<!-- Add Transaction Modal -->
+<div class="modal" id="addTransactionModal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h2>Add Transaction</h2>
+            <button class="modal-close" onclick="closeModal('addTransactionModal')">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        
+        <div class="transaction-type-selector">
+            <button class="type-btn active" data-type="expense">
+                <i class="fas fa-arrow-down"></i>
+                <span>Expense</span>
+            </button>
+            <button class="type-btn" data-type="income">
+                <i class="fas fa-arrow-up"></i>
+                <span>Income</span>
+            </button>
+            <button class="type-btn" data-type="transfer">
+                <i class="fas fa-exchange-alt"></i>
+                <span>Transfer</span>
+            </button>
+        </div>
+        
+        <form id="transactionForm">
+            <div class="form-group">
+                <label for="transactionAccount">From Account</label>
+                <select id="transactionAccount" name="account_id" required>
+                    <option value="">Select Account</option>
+                </select>
+            </div>
+            
+            <div class="form-group" id="categoryGroup">
+                <label for="transactionCategory">Category</label>
+                <select id="transactionCategory" name="category_id" required>
+                    <option value="">Select Category</option>
+                </select>
+            </div>
+            
+            <div class="form-group" id="toAccountGroup" style="display: none;">
+                <label for="toAccount">To Account</label>
+                <select id="toAccount" name="to_account_id">
+                    <option value="">Select Account</option>
+                </select>
+            </div>
+            
+            <div class="form-group">
+                <label for="transactionAmount">Amount (₹)</label>
+                <input type="number" id="transactionAmount" name="amount" step="0.01" min="0.01" required>
+            </div>
+            
+            <div class="form-actions">
+                <button type="button" class="btn btn-outline" onclick="closeModal('addTransactionModal')">Cancel</button>
+                <button type="submit" class="btn btn-primary">Add Transaction</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+let accounts = [];
+let categories = [];
+
+document.addEventListener('DOMContentLoaded', function() {
+    loadData();
+    setupTransactionForm();
+});
+
+async function loadData() {
+    try {
+        // Load summary data
+        const summaryResponse = await fetch('/api/dashboard_data');
+        const summaryData = await summaryResponse.json();
+        updateSummaryCards(summaryData);
+
+        // Load accounts and categories
+        const [accountsResponse, categoriesResponse] = await Promise.all([
+            fetch('/api/accounts'),
+            fetch('/api/categories')
+        ]);
+        
+        accounts = await accountsResponse.json();
+        categories = await categoriesResponse.json();
+        
+        updateTransactionFormOptions();
+        loadTransactions();
+    } catch (error) {
+        console.error('Failed to load data:', error);
+        showNotification('Failed to load data', 'error');
+    }
+}
+
+function updateSummaryCards(data) {
+    document.getElementById('totalIncome').textContent = formatCurrency(data.total_income);
+    document.getElementById('totalExpense').textContent = formatCurrency(data.total_expense);
+    document.getElementById('totalSaving').textContent = formatCurrency(data.total_saving);
+    
+    const savingElement = document.getElementById('totalSaving');
+    savingElement.className = `amount ${data.total_saving >= 0 ? 'text-success' : 'text-danger'}`;
+}
+
+async function loadTransactions() {
+    try {
+        const response = await fetch('/api/transactions');
+        const transactions = await response.json();
+        displayTransactions(transactions);
+    } catch (error) {
+        console.error('Failed to load transactions:', error);
+        showNotification('Failed to load transactions', 'error');
+    }
+}
+
+function displayTransactions(transactions) {
+    const transactionsList = document.getElementById('transactionsList');
+
+    if (!transactions || transactions.length === 0) {
+        transactionsList.innerHTML = `
+            <div class="empty-message">
+                <i class="fas fa-receipt"></i>
+                <p>No transactions found</p>
+                <small>Add your first transaction using the button above</small>
+            </div>
+        `;
+        return;
+    }
+
+    transactionsList.innerHTML = transactions.map(transaction => `
+        <div class="transaction-item">
+            <div class="transaction-info">
+                <div class="transaction-type ${transaction.type}">
+                    <i class="fas fa-${getTransactionIcon(transaction.type)}"></i>
+                </div>
+                <div class="transaction-details">
+                    <h4>${transaction.category_name || 'Transfer'}</h4>
+                    <p>${transaction.account_name}${transaction.to_account_name ? ` → ${transaction.to_account_name}` : ''}</p>
+                    <small>${formatDate(transaction.transaction_date)}</small>
+                </div>
+            </div>
+            <div class="transaction-amount ${transaction.type}">
+                ${transaction.type === 'expense' ? '-' : '+'}${formatCurrency(transaction.amount)}
+            </div>
+            <button class="btn-delete" onclick="deleteTransaction(${transaction.id})" title="Delete transaction">
+                <i class="fas fa-trash"></i>
+            </button>
+        </div>
+    `).join('');
+}
+
+function setupTransactionForm() {
+    const typeButtons = document.querySelectorAll('.type-btn');
+    const transactionForm = document.getElementById('transactionForm');
+
+    typeButtons.forEach(btn => {
+        btn.addEventListener('click', function() {
+            typeButtons.forEach(b => b.classList.remove('active'));
+            this.classList.add('active');
+            
+            const type = this.getAttribute('data-type');
+            updateFormForType(type);
+        });
+    });
+
+    if (transactionForm) {
+        transactionForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            await submitTransaction();
+        });
+    }
+}
+
+function updateFormForType(type) {
+    const categoryGroup = document.getElementById('categoryGroup');
+    const toAccountGroup = document.getElementById('toAccountGroup');
+    const categorySelect = document.getElementById('transactionCategory');
+    const toAccountSelect = document.getElementById('toAccount');
+
+    if (type === 'transfer') {
+        categoryGroup.style.display = 'none';
+        toAccountGroup.style.display = 'block';
+        categorySelect.removeAttribute('required');
+        toAccountSelect.setAttribute('required', 'required');
+    } else {
+        categoryGroup.style.display = 'block';
+        toAccountGroup.style.display = 'none';
+        categorySelect.setAttribute('required', 'required');
+        toAccountSelect.removeAttribute('required');
+        
+        updateCategoriesForType(type);
+    }
+}
+
+function updateCategoriesForType(type) {
+    const categorySelect = document.getElementById('transactionCategory');
+    categorySelect.innerHTML = '<option value="">Select Category</option>';
+
+    const filteredCategories = categories.filter(cat => cat.type === type);
+    filteredCategories.forEach(category => {
+        const option = document.createElement('option');
+        option.value = category.id;
+        option.textContent = category.name;
+        categorySelect.appendChild(option);
+    });
+}
+
+function updateTransactionFormOptions() {
+    const accountSelect = document.getElementById('transactionAccount');
+    const toAccountSelect = document.getElementById('toAccount');
+
+    if (!accountSelect || !toAccountSelect) return;
+
+    accountSelect.innerHTML = '<option value="">Select Account</option>';
+    toAccountSelect.innerHTML = '<option value="">Select Account</option>';
+
+    accounts.forEach(account => {
+        const option1 = document.createElement('option');
+        option1.value = account.id;
+        option1.textContent = `${account.name} (${formatCurrency(account.balance)})`;
+        accountSelect.appendChild(option1);
+
+        const option2 = document.createElement('option');
+        option2.value = account.id;
+        option2.textContent = `${account.name} (${formatCurrency(account.balance)})`;
+        toAccountSelect.appendChild(option2);
+    });
+
+    updateCategoriesForType('expense');
+}
+
+async function submitTransaction() {
+    const form = document.getElementById('transactionForm');
+    const formData = new FormData(form);
+    const activeTypeBtn = document.querySelector('.type-btn.active');
+    const type = activeTypeBtn.getAttribute('data-type');
+
+    const transactionData = {
+        type: type,
+        account_id: parseInt(formData.get('account_id')),
+        amount: parseFloat(formData.get('amount'))
+    };
+
+    if (type !== 'transfer') {
+        transactionData.category_id = parseInt(formData.get('category_id'));
+    } else {
+        transactionData.to_account_id = parseInt(formData.get('to_account_id'));
+    }
+
+    try {
+        const response = await fetch('/api/add_transaction', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(transactionData)
+        });
+
+        const result = await response.json();
+
+        if (result.success) {
+            showNotification('Transaction added successfully', 'success');
+            closeModal('addTransactionModal');
+            form.reset();
+            
+            // Reset to expense type
+            document.querySelectorAll('.type-btn').forEach(btn => btn.classList.remove('active'));
+            document.querySelector('[data-type="expense"]').classList.add('active');
+            updateFormForType('expense');
+            
+            loadData();
+        } else {
+            showNotification(result.error || 'Failed to add transaction', 'error');
+        }
+    } catch (error) {
+        console.error('Transaction submission error:', error);
+        showNotification('Failed to add transaction', 'error');
+    }
+}
+
+async function deleteTransaction(transactionId) {
+    if (!confirm('Are you sure you want to delete this transaction?')) {
+        return;
+    }
+
+    try {
+        const response = await fetch(`/api/transactions/${transactionId}`, {
+            method: 'DELETE'
+        });
+
+        const result = await response.json();
+
+        if (result.success) {
+            showNotification('Transaction deleted successfully', 'success');
+            loadData();
+        } else {
+            showNotification('Failed to delete transaction', 'error');
+        }
+    } catch (error) {
+        console.error('Failed to delete transaction:', error);
+        showNotification('Failed to delete transaction', 'error');
+    }
+}
+
+function getTransactionIcon(type) {
+    switch (type) {
+        case 'income': return 'arrow-up';
+        case 'expense': return 'arrow-down';
+        case 'transfer': return 'exchange-alt';
+        default: return 'circle';
+    }
+}
+
+function formatDate(dateString) {
+    if (!dateString) return 'Unknown';
+    return new Date(dateString).toLocaleDateString('en-IN');
+}
+</script>
+{% endblock %}
