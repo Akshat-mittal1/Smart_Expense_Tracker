@@ -1,0 +1,652 @@
+{% extends "dashboard/base.html" %}
+
+{% block page_title %}Monthly Reports{% endblock %}
+
+{% block content %}
+<div class="reports-container">
+    <!-- Reports Header -->
+    <div class="reports-header">
+        <div class="header-content">
+            <h2><i class="fas fa-file-alt"></i> Monthly Financial Reports</h2>
+            <p>Comprehensive monthly summaries of your financial activity with detailed insights and analysis.</p>
+        </div>
+        <div class="header-actions">
+            <button class="btn btn-primary" onclick="generateCurrentMonthReport()">
+                <i class="fas fa-file-alt"></i>
+                Generate Current Month
+            </button>
+            <button class="btn btn-outline" onclick="showEmailSettings()">
+                <i class="fas fa-cog"></i>
+                Email Settings
+            </button>
+        </div>
+    </div>
+
+    <!-- Reports Grid -->
+    <div class="reports-grid">
+        <!-- Available Reports -->
+        <div class="reports-list-section">
+            <div class="section-header">
+                <h3><i class="fas fa-calendar-alt"></i> Available Reports</h3>
+                <div class="filter-controls">
+                    <select id="yearFilter" class="form-select">
+                        <option value="">All Years</option>
+                    </select>
+                </div>
+            </div>
+            <div class="reports-list" id="reportsList">
+                <div class="loading-message">
+                    <i class="fas fa-spinner fa-spin"></i>
+                    <p>Loading available reports...</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Report Preview -->
+        <div class="report-preview-section">
+            <div class="section-header">
+                <h3><i class="fas fa-eye"></i> Report Preview</h3>
+                <div class="preview-actions" id="previewActions" style="display: none;">
+                    <button class="btn btn-outline" onclick="downloadCurrentReport()">
+                        <i class="fas fa-download"></i>
+                        Download PDF
+                    </button>
+                    <button class="btn btn-primary" onclick="emailCurrentReport()">
+                        <i class="fas fa-envelope"></i>
+                        Email Report
+                    </button>
+                </div>
+            </div>
+            <div class="report-preview" id="reportPreview">
+                <div class="empty-message">
+                    <i class="fas fa-chart-line"></i>
+                    <p>Select a report to preview</p>
+                    <small>Choose a month from the available reports to view details</small>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Email Settings Modal -->
+<div class="modal" id="emailSettingsModal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h2><i class="fas fa-envelope-open-text"></i> Email Report Settings</h2>
+            <button class="modal-close" onclick="closeModal('emailSettingsModal')">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        
+        <div class="email-settings-content">
+            <div class="setting-item">
+                <div class="setting-info">
+                    <h4>Automatic Monthly Reports</h4>
+                    <p>Receive your monthly financial report automatically via email on the 1st of each month.</p>
+                </div>
+                <div class="setting-control">
+                    <label class="toggle-switch">
+                        <input type="checkbox" id="autoEmailToggle">
+                        <span class="toggle-slider"></span>
+                    </label>
+                </div>
+            </div>
+            
+            <div class="email-preview" id="emailPreview" style="display: none;">
+                <h4><i class="fas fa-eye"></i> Email Preview</h4>
+                <div class="email-sample">
+                    <div class="email-header">
+                        <strong>Subject:</strong> Monthly Financial Report - [Month Year]
+                    </div>
+                    <div class="email-body">
+                        <p>Hello {{ session.username }},</p>
+                        <p>Here's your financial summary with detailed PDF report attached...</p>
+                        <div class="email-summary">
+                            <div class="summary-item">
+                                <span class="label">Total Income:</span>
+                                <span class="value income">₹XX,XXX.XX</span>
+                            </div>
+                            <div class="summary-item">
+                                <span class="label">Total Expenses:</span>
+                                <span class="value expense">₹XX,XXX.XX</span>
+                            </div>
+                            <div class="summary-item">
+                                <span class="label">Net Savings:</span>
+                                <span class="value saving">₹XX,XXX.XX</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="form-actions">
+            <button type="button" class="btn btn-outline" onclick="closeModal('emailSettingsModal')">Cancel</button>
+            <button type="button" class="btn btn-primary" onclick="saveEmailSettings()">Save Settings</button>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let availableReports = [];
+let currentReport = null;
+let currentReportData = null;
+
+document.addEventListener('DOMContentLoaded', function() {
+    loadAvailableReports();
+    loadEmailSettings();
+    setupYearFilter();
+});
+
+async function loadAvailableReports() {
+    try {
+        const response = await fetch('/api/monthly-reports');
+        availableReports = await response.json();
+        
+        displayReportsList();
+        populateYearFilter();
+    } catch (error) {
+        console.error('Failed to load reports:', error);
+        showNotification('Failed to load reports', 'error');
+    }
+}
+
+function displayReportsList(filteredReports = null) {
+    const reportsList = document.getElementById('reportsList');
+    const reports = filteredReports || availableReports;
+    
+    if (reports.length === 0) {
+        reportsList.innerHTML = `
+            <div class="empty-message">
+                <i class="fas fa-file-alt"></i>
+                <p>No reports available</p>
+                <small>Start adding transactions to generate monthly reports</small>
+            </div>
+        `;
+        return;
+    }
+    
+    reportsList.innerHTML = reports.map(report => `
+        <div class="report-item" onclick="loadReportPreview(${report.year}, ${report.month})">
+            <div class="report-info">
+                <h4>${report.display_name}</h4>
+                <p>${report.transaction_count} transactions</p>
+            </div>
+            <div class="report-actions">
+                <button class="btn btn-sm btn-outline" onclick="event.stopPropagation(); downloadReport(${report.year}, ${report.month})" title="Download PDF">
+                    <i class="fas fa-download"></i>
+                </button>
+                <button class="btn btn-sm btn-primary" onclick="event.stopPropagation(); emailReport(${report.year}, ${report.month})" title="Email Report">
+                    <i class="fas fa-envelope"></i>
+                </button>
+            </div>
+        </div>
+    `).join('');
+}
+
+function populateYearFilter() {
+    const yearFilter = document.getElementById('yearFilter');
+    const years = [...new Set(availableReports.map(report => report.year))].sort((a, b) => b - a);
+    
+    yearFilter.innerHTML = '<option value="">All Years</option>';
+    years.forEach(year => {
+        const option = document.createElement('option');
+        option.value = year;
+        option.textContent = year;
+        yearFilter.appendChild(option);
+    });
+}
+
+function setupYearFilter() {
+    const yearFilter = document.getElementById('yearFilter');
+    yearFilter.addEventListener('change', function() {
+        const selectedYear = this.value;
+        if (selectedYear) {
+            const filteredReports = availableReports.filter(report => report.year == selectedYear);
+            displayReportsList(filteredReports);
+        } else {
+            displayReportsList();
+        }
+    });
+}
+
+async function loadReportPreview(year, month) {
+    try {
+        const response = await fetch(`/api/monthly-report/${year}/${month}`);
+        currentReportData = await response.json();
+        currentReport = { year, month };
+        
+        displayReportPreview(currentReportData);
+        
+        // Show preview actions
+        document.getElementById('previewActions').style.display = 'flex';
+        
+        // Highlight selected report
+        document.querySelectorAll('.report-item').forEach(item => item.classList.remove('active'));
+        event.currentTarget.classList.add('active');
+        
+    } catch (error) {
+        console.error('Failed to load report preview:', error);
+        showNotification('Failed to load report preview', 'error');
+    }
+}
+
+function displayReportPreview(data) {
+    const reportPreview = document.getElementById('reportPreview');
+    
+    reportPreview.innerHTML = `
+        <div class="report-summary">
+            <div class="report-title">
+                <h3>${data.month_year} Financial Report</h3>
+                <span class="report-badge">${data.transaction_count} transactions</span>
+            </div>
+            
+            <div class="summary-grid">
+                <div class="summary-item income">
+                    <div class="summary-icon">
+                        <i class="fas fa-arrow-up"></i>
+                    </div>
+                    <div class="summary-details">
+                        <h4>Total Income</h4>
+                        <p class="amount">${formatCurrency(data.total_income)}</p>
+                    </div>
+                </div>
+                
+                <div class="summary-item expense">
+                    <div class="summary-icon">
+                        <i class="fas fa-arrow-down"></i>
+                    </div>
+                    <div class="summary-details">
+                        <h4>Total Expenses</h4>
+                        <p class="amount">${formatCurrency(data.total_expense)}</p>
+                    </div>
+                </div>
+                
+                <div class="summary-item saving">
+                    <div class="summary-icon">
+                        <i class="fas fa-piggy-bank"></i>
+                    </div>
+                    <div class="summary-details">
+                        <h4>Net Savings</h4>
+                        <p class="amount ${data.total_saving >= 0 ? 'positive' : 'negative'}">
+                            ${formatCurrency(data.total_saving)}
+                        </p>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="charts-section">
+                <div class="chart-container">
+                    <h4>Expense Breakdown</h4>
+                    <div class="chart-wrapper">
+                        <canvas id="expenseChart"></canvas>
+                    </div>
+                    <div class="chart-legend" id="expenseLegend"></div>
+                </div>
+                
+                ${data.income_categories.length > 1 ? `
+                <div class="chart-container">
+                    <h4>Income Sources</h4>
+                    <div class="chart-wrapper">
+                        <canvas id="incomeChart"></canvas>
+                    </div>
+                    <div class="chart-legend" id="incomeLegend"></div>
+                </div>
+                ` : ''}
+            </div>
+            
+            <div class="insights-section">
+                <h4>Financial Insights</h4>
+                <div class="insights-list">
+                    ${generateInsights(data).map(insight => `
+                        <div class="insight-item">
+                            <i class="fas fa-lightbulb"></i>
+                            <span>${insight}</span>
+                        </div>
+                    `).join('')}
+                </div>
+            </div>
+        </div>
+    `;
+    
+    // Create charts
+    setTimeout(() => {
+        createExpenseChart(data.expense_categories);
+        if (data.income_categories.length > 1) {
+            createIncomeChart(data.income_categories);
+        }
+    }, 100);
+}
+
+function createExpenseChart(categories) {
+    const ctx = document.getElementById('expenseChart');
+    if (!ctx || categories.length === 0) return;
+    
+    const colors = [
+        '#ef4444', '#f97316', '#f59e0b', '#eab308', 
+        '#84cc16', '#22c55e', '#10b981', '#14b8a6',
+        '#06b6d4', '#0ea5e9', '#3b82f6', '#6366f1',
+        '#8b5cf6', '#a855f7', '#d946ef', '#ec4899'
+    ];
+    
+    new Chart(ctx, {
+        type: 'pie',
+        data: {
+            labels: categories.map(cat => cat.name),
+            datasets: [{
+                data: categories.map(cat => cat.amount),
+                backgroundColor: colors.slice(0, categories.length),
+                borderWidth: 2,
+                borderColor: '#ffffff'
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    display: false
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            const label = context.label || '';
+                            const value = formatCurrency(context.parsed);
+                            const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                            const percentage = ((context.parsed / total) * 100).toFixed(1);
+                            return `${label}: ${value} (${percentage}%)`;
+                        }
+                    }
+                }
+            }
+        }
+    });
+    
+    // Create custom legend
+    const legend = document.getElementById('expenseLegend');
+    legend.innerHTML = categories.map((cat, index) => `
+        <div class="legend-item">
+            <div class="legend-color" style="background-color: ${colors[index]}"></div>
+            <span class="legend-label">${cat.name}</span>
+            <span class="legend-value">${formatCurrency(cat.amount)}</span>
+        </div>
+    `).join('');
+}
+
+function createIncomeChart(categories) {
+    const ctx = document.getElementById('incomeChart');
+    if (!ctx || categories.length === 0) return;
+    
+    const colors = [
+        '#10b981', '#22c55e', '#84cc16', '#eab308',
+        '#f59e0b', '#f97316', '#ef4444', '#ec4899'
+    ];
+    
+    new Chart(ctx, {
+        type: 'pie',
+        data: {
+            labels: categories.map(cat => cat.name),
+            datasets: [{
+                data: categories.map(cat => cat.amount),
+                backgroundColor: colors.slice(0, categories.length),
+                borderWidth: 2,
+                borderColor: '#ffffff'
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    display: false
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            const label = context.label || '';
+                            const value = formatCurrency(context.parsed);
+                            const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                            const percentage = ((context.parsed / total) * 100).toFixed(1);
+                            return `${label}: ${value} (${percentage}%)`;
+                        }
+                    }
+                }
+            }
+        }
+    });
+    
+    // Create custom legend
+    const legend = document.getElementById('incomeLegend');
+    legend.innerHTML = categories.map((cat, index) => `
+        <div class="legend-item">
+            <div class="legend-color" style="background-color: ${colors[index]}"></div>
+            <span class="legend-label">${cat.name}</span>
+            <span class="legend-value">${formatCurrency(cat.amount)}</span>
+        </div>
+    `).join('');
+}
+
+function generateInsights(data) {
+    const insights = [];
+    
+    // Savings rate insight
+    if (data.total_income > 0) {
+        const savingsRate = (data.total_saving / data.total_income) * 100;
+        if (savingsRate >= 20) {
+            insights.push(`Excellent! You saved ${savingsRate.toFixed(1)}% of your income this month.`);
+        } else if (savingsRate >= 10) {
+            insights.push(`Good job! You saved ${savingsRate.toFixed(1)}% of your income. Try to reach 20% for optimal savings.`);
+        } else if (savingsRate > 0) {
+            insights.push(`You saved ${savingsRate.toFixed(1)}% of your income. Consider reducing expenses to increase savings.`);
+        } else {
+            insights.push(`You spent more than you earned this month. Review your expenses and create a budget.`);
+        }
+    }
+    
+    // Top expense category
+    if (data.expense_categories.length > 0) {
+        const topExpense = data.expense_categories[0];
+        const percentage = (topExpense.amount / data.total_expense * 100).toFixed(1);
+        insights.push(`Your highest expense category is '${topExpense.name}' at ${percentage}% of total expenses.`);
+    }
+    
+    // Transaction frequency
+    if (data.transaction_count > 0) {
+        const avgPerDay = (data.transaction_count / 30).toFixed(1);
+        insights.push(`You made ${data.transaction_count} transactions this month (${avgPerDay} per day on average).`);
+    }
+    
+    return insights;
+}
+
+async function generateCurrentMonthReport() {
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = now.getMonth() + 1;
+    
+    await loadReportPreview(year, month);
+}
+
+async function downloadCurrentReport() {
+    if (!currentReport) {
+        showNotification('Please select a report first', 'warning');
+        return;
+    }
+    
+    try {
+        const response = await fetch(`/api/monthly-report/${currentReport.year}/${currentReport.month}/pdf`);
+        
+        if (response.ok) {
+            const blob = await response.blob();
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `Monthly_Report_${currentReportData.month_year.replace(' ', '_')}.pdf`;
+            document.body.appendChild(a);
+            a.click();
+            window.URL.revokeObjectURL(url);
+            document.body.removeChild(a);
+            
+            showNotification('Report downloaded successfully', 'success');
+        } else {
+            throw new Error('Failed to download report');
+        }
+    } catch (error) {
+        console.error('Download error:', error);
+        showNotification('Failed to download report', 'error');
+    }
+}
+
+async function downloadReport(year, month) {
+    try {
+        const response = await fetch(`/api/monthly-report/${year}/${month}/pdf`);
+        
+        if (response.ok) {
+            const blob = await response.blob();
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            const monthName = new Date(year, month - 1).toLocaleString('default', { month: 'long' });
+            a.download = `Monthly_Report_${monthName}_${year}.pdf`;
+            document.body.appendChild(a);
+            a.click();
+            window.URL.revokeObjectURL(url);
+            document.body.removeChild(a);
+            
+            showNotification('Report downloaded successfully', 'success');
+        } else {
+            throw new Error('Failed to download report');
+        }
+    } catch (error) {
+        console.error('Download error:', error);
+        showNotification('Failed to download report', 'error');
+    }
+}
+
+async function emailCurrentReport() {
+    if (!currentReport) {
+        showNotification('Please select a report first', 'warning');
+        return;
+    }
+    
+    await emailReport(currentReport.year, currentReport.month);
+}
+
+async function emailReport(year, month) {
+    try {
+        const response = await fetch(`/api/send-monthly-report/${year}/${month}`, {
+            method: 'POST'
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            showNotification('Report sent to your email successfully', 'success');
+        } else {
+            throw new Error(result.error || 'Failed to send email');
+        }
+    } catch (error) {
+        console.error('Email error:', error);
+        showNotification('Failed to send report via email', 'error');
+    }
+}
+
+async function loadEmailSettings() {
+    try {
+        const response = await fetch('/api/user-settings');
+        const settings = await response.json();
+        
+        document.getElementById('autoEmailToggle').checked = settings.email_notifications;
+    } catch (error) {
+        console.error('Failed to load email settings:', error);
+    }
+}
+
+async function saveEmailSettings() {
+    const autoEmail = document.getElementById('autoEmailToggle').checked;
+    
+    try {
+        const response = await fetch('/api/user-settings', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                email_notifications: autoEmail
+            })
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            showNotification('Email settings saved successfully', 'success');
+            closeModal('emailSettingsModal');
+        } else {
+            throw new Error(result.error || 'Failed to save settings');
+        }
+    } catch (error) {
+        console.error('Settings error:', error);
+        showNotification('Failed to save email settings', 'error');
+    }
+}
+
+// Show email settings modal
+function showEmailSettings() {
+    openModal('emailSettingsModal');
+    
+    const toggle = document.getElementById('autoEmailToggle');
+    const preview = document.getElementById('emailPreview');
+    
+    toggle.addEventListener('change', function() {
+        preview.style.display = this.checked ? 'block' : 'none';
+    });
+    
+    // Trigger initial state
+    preview.style.display = toggle.checked ? 'block' : 'none';
+}
+
+// Utility functions
+function formatCurrency(amount) {
+    return new Intl.NumberFormat('en-IN', {
+        style: 'currency',
+        currency: 'INR',
+        minimumFractionDigits: 2
+    }).format(amount);
+}
+
+function openModal(modalId) {
+    document.getElementById(modalId).style.display = 'block';
+    document.body.style.overflow = 'hidden';
+}
+
+function closeModal(modalId) {
+    document.getElementById(modalId).style.display = 'none';
+    document.body.style.overflow = '';
+}
+
+function showNotification(message, type) {
+    // Create notification element
+    const notification = document.createElement('div');
+    notification.className = `notification ${type}`;
+    notification.innerHTML = `
+        <i class="fas fa-${type === 'success' ? 'check-circle' : type === 'error' ? 'exclamation-circle' : 'info-circle'}"></i>
+        <span>${message}</span>
+        <button class="notification-close" onclick="this.parentElement.remove()">
+            <i class="fas fa-times"></i>
+        </button>
+    `;
+    
+    // Add to page
+    document.body.appendChild(notification);
+    
+    // Auto remove after 5 seconds
+    setTimeout(() => {
+        if (notification.parentElement) {
+            notification.remove();
+        }
+    }, 5000);
+}
+</script>
+{% endblock %}
