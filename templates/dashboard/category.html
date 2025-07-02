@@ -1,0 +1,142 @@
+{% extends "dashboard/base.html" %}
+
+{% block page_title %}Category{% endblock %}
+
+{% block content %}
+<div class="categories-section">
+    <div class="category-group">
+        <div class="category-header">
+            <h3>Income Categories</h3>
+            <button class="btn btn-outline add-category-btn" onclick="addCategory('income')">
+                <i class="fas fa-plus"></i> Add Income Category
+            </button>
+        </div>
+        <div class="categories-list" id="incomeCategories">
+            <div class="loading-message">Loading categories...</div>
+        </div>
+    </div>
+    
+    <div class="category-group">
+        <div class="category-header">
+            <h3>Expense Categories</h3>
+            <button class="btn btn-outline add-category-btn" onclick="addCategory('expense')">
+                <i class="fas fa-plus"></i> Add Expense Category
+            </button>
+        </div>
+        <div class="categories-list" id="expenseCategories">
+            <div class="loading-message">Loading categories...</div>
+        </div>
+    </div>
+</div>
+
+<script>
+let categories = [];
+
+document.addEventListener('DOMContentLoaded', function() {
+    loadCategoryData();
+});
+
+async function loadCategoryData() {
+    try {
+        const response = await fetch('/api/categories');
+        categories = await response.json();
+        displayCategories();
+    } catch (error) {
+        console.error('Failed to load categories:', error);
+        showNotification('Failed to load categories', 'error');
+    }
+}
+
+function displayCategories() {
+    const incomeCategories = document.getElementById('incomeCategories');
+    const expenseCategories = document.getElementById('expenseCategories');
+
+    const incomeList = categories.filter(cat => cat.type === 'income');
+    const expenseList = categories.filter(cat => cat.type === 'expense');
+
+    incomeCategories.innerHTML = incomeList.map(category => `
+        <div class="category-item">
+            <span class="category-name">${category.name}</span>
+            <div class="category-actions">
+                ${!category.is_default ? `
+                    <button class="btn btn-sm btn-outline btn-danger" onclick="deleteCategory(${category.id})" title="Delete category">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                ` : '<span class="default-badge">Default</span>'}
+            </div>
+        </div>
+    `).join('');
+
+    expenseCategories.innerHTML = expenseList.map(category => `
+        <div class="category-item">
+            <span class="category-name">${category.name}</span>
+            <div class="category-actions">
+                ${!category.is_default ? `
+                    <button class="btn btn-sm btn-outline btn-danger" onclick="deleteCategory(${category.id})" title="Delete category">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                ` : '<span class="default-badge">Default</span>'}
+            </div>
+        </div>
+    `).join('');
+}
+
+function addCategory(type) {
+    const name = prompt(`Enter ${type} category name:`);
+    if (name && name.trim()) {
+        saveCategory(name.trim(), type);
+    }
+}
+
+async function saveCategory(name, type) {
+    try {
+        const response = await fetch('/api/categories', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                name: name,
+                type: type
+            })
+        });
+
+        const result = await response.json();
+
+        if (result.success) {
+            showNotification('Category added successfully', 'success');
+            loadCategoryData();
+        } else {
+            showNotification(result.error || 'Failed to add category', 'error');
+        }
+    } catch (error) {
+        console.error('Failed to add category:', error);
+        showNotification('Failed to add category', 'error');
+    }
+}
+
+async function deleteCategory(categoryId) {
+    if (!confirm('Are you sure you want to delete this category? This action cannot be undone.')) {
+        return;
+    }
+
+    try {
+        const response = await fetch(`/api/categories/${categoryId}`, {
+            method: 'DELETE'
+        });
+
+        const result = await response.json();
+
+        if (result.success) {
+            showNotification('Category deleted successfully', 'success');
+            loadCategoryData();
+        } else {
+            showNotification(result.error || 'Failed to delete category', 'error');
+        }
+    } catch (error) {
+        console.error('Failed to delete category:', error);
+        showNotification('Failed to delete category', 'error');
+    }
+}
+</script>
+{% endblock %}
