@@ -1,0 +1,191 @@
+{% extends "dashboard/base.html" %}
+
+{% block page_title %}Budget{% endblock %}
+
+{% block content %}
+<div class="summary-cards">
+    <div class="summary-card income">
+        <div class="card-icon">
+            <i class="fas fa-arrow-up"></i>
+        </div>
+        <div class="card-content">
+            <h3>Total Income</h3>
+            <p class="amount" id="totalIncome">₹0.00</p>
+            <small>So Far</small>
+        </div>
+    </div>
+    <div class="summary-card expense">
+        <div class="card-icon">
+            <i class="fas fa-arrow-down"></i>
+        </div>
+        <div class="card-content">
+            <h3>Total Expense</h3>
+            <p class="amount" id="totalExpense">₹0.00</p>
+            <small>So Far</small>
+        </div>
+    </div>
+    <div class="summary-card saving">
+        <div class="card-icon">
+            <i class="fas fa-piggy-bank"></i>
+        </div>
+        <div class="card-content">
+            <h3>Total Saving</h3>
+            <p class="amount" id="totalSaving">₹0.00</p>
+            <small>So Far</small>
+        </div>
+    </div>
+</div>
+
+<div class="budget-section">
+    <div class="section-header">
+        <h2>Budget Management</h2>
+        <p>Set and track your monthly budgets for each expense category</p>
+    </div>
+    <div class="budget-categories" id="budgetCategories">
+        <div class="loading-message">Loading budget data...</div>
+    </div>
+</div>
+
+<script>
+let categories = [];
+
+document.addEventListener('DOMContentLoaded', function() {
+    loadData();
+});
+
+async function loadData() {
+    try {
+        // Load summary data
+        const summaryResponse = await fetch('/api/dashboard_data');
+        const summaryData = await summaryResponse.json();
+        updateSummaryCards(summaryData);
+
+        // Load categories
+        const categoriesResponse = await fetch('/api/categories');
+        categories = await categoriesResponse.json();
+
+        // Load budget data
+        loadBudgetData();
+    } catch (error) {
+        console.error('Failed to load data:', error);
+        showNotification('Failed to load data', 'error');
+    }
+}
+
+function updateSummaryCards(data) {
+    document.getElementById('totalIncome').textContent = formatCurrency(data.total_income);
+    document.getElementById('totalExpense').textContent = formatCurrency(data.total_expense);
+    document.getElementById('totalSaving').textContent = formatCurrency(data.total_saving);
+    
+    const savingElement = document.getElementById('totalSaving');
+    savingElement.className = `amount ${data.total_saving >= 0 ? 'text-success' : 'text-danger'}`;
+}
+
+async function loadBudgetData() {
+    try {
+        const response = await fetch('/api/budgets');
+        const budgets = await response.json();
+        displayBudgets(budgets);
+    } catch (error) {
+        console.error('Failed to load budget data:', error);
+        showNotification('Failed to load budget data', 'error');
+    }
+}
+
+function displayBudgets(budgets) {
+    const budgetCategories = document.getElementById('budgetCategories');
+    const expenseCategories = categories.filter(cat => cat.type === 'expense');
+
+    if (expenseCategories.length === 0) {
+        budgetCategories.innerHTML = `
+            <div class="empty-message">
+                <i class="fas fa-wallet"></i>
+                <p>No expense categories found</p>
+                <small>Add some expense categories first</small>
+            </div>
+        `;
+        return;
+    }
+
+    budgetCategories.innerHTML = expenseCategories.map(category => {
+        const budget = budgets.find(b => b.category_id === category.id);
+        const spent = budget ? budget.spent : 0;
+        const budgetAmount = budget ? budget.amount : 0;
+        const percentage = budgetAmount > 0 ? (spent / budgetAmount) * 100 : 0;
+
+        return `
+            <div class="budget-item">
+                <div class="budget-header">
+                    <h4>${category.name}</h4>
+                    <div class="budget-actions">
+                        <button class="btn btn-sm btn-outline" onclick="setBudget(${category.id}, '${category.name}', ${budgetAmount})">
+                            <i class="fas fa-${budget ? 'edit' : 'plus'}"></i>
+                            ${budget ? 'Edit' : 'Set'} Budget
+                        </button>
+                    </div>
+                </div>
+                ${budget ? `
+                    <div class="budget-progress">
+                        <div class="progress-bar">
+                            <div class="progress-fill ${percentage > 100 ? 'over-budget' : ''}" 
+                                 style="width: ${Math.min(percentage, 100)}%"></div>
+                        </div>
+                        <div class="budget-info">
+                            <span>${formatCurrency(spent)} / ${formatCurrency(budgetAmount)}</span>
+                            <span class="${percentage > 100 ? 'text-danger' : 'text-success'}">
+                                ${percentage.toFixed(1)}%
+                            </span>
+                        </div>
+                        ${percentage > 100 ? `
+                            <div class="budget-warning">
+                                <i class="fas fa-exclamation-triangle"></i>
+                                Over budget by ${formatCurrency(spent - budgetAmount)}
+                            </div>
+                        ` : ''}
+                    </div>
+                ` : `
+                    <div class="no-budget-message">
+                        <i class="fas fa-info-circle"></i>
+                        No budget set for this category
+                    </div>
+                `}
+            </div>
+        `;
+    }).join('');
+}
+
+function setBudget(categoryId, categoryName, currentAmount = 0) {
+    const amount = prompt(`Set budget for ${categoryName}:`, currentAmount || '');
+    if (amount && !isNaN(amount) && parseFloat(amount) > 0) {
+        saveBudget(categoryId, parseFloat(amount));
+    }
+}
+
+async function saveBudget(categoryId, amount) {
+    try {
+        const response = await fetch('/api/budgets', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                category_id: categoryId,
+                amount: amount
+            })
+        });
+
+        const result = await response.json();
+
+        if (result.success) {
+            showNotification('Budget saved successfully', 'success');
+            loadBudgetData();
+        } else {
+            showNotification('Failed to save budget', 'error');
+        }
+    } catch (error) {
+        console.error('Failed to save budget:', error);
+        showNotification('Failed to save budget', 'error');
+    }
+}
+</script>
+{% endblock %}
