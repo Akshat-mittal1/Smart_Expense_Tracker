@@ -1,0 +1,371 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard - Expense Tracker{% endblock %}
+
+{% block content %}
+<div class="dashboard-container" id="dashboardContainer">
+    <!-- Sidebar -->
+    <div class="sidebar">
+        <div class="sidebar-header">
+            <div class="profile-section">
+                <div class="profile-avatar">
+                    <i class="fas fa-user"></i>
+                </div>
+                <span class="username">{{ session.username }}</span>
+            </div>
+        </div>
+        
+        <nav class="sidebar-nav">
+            <a href="#" class="nav-item active" data-tab="records">
+                <i class="fas fa-list"></i>
+                <span>Records</span>
+            </a>
+            <a href="#" class="nav-item" data-tab="analysis">
+                <i class="fas fa-chart-pie"></i>
+                <span>Analysis</span>
+            </a>
+            <a href="#" class="nav-item" data-tab="budget">
+                <i class="fas fa-wallet"></i>
+                <span>Budget</span>
+            </a>
+            <a href="#" class="nav-item" data-tab="account">
+                <i class="fas fa-credit-card"></i>
+                <span>Account</span>
+            </a>
+            <a href="#" class="nav-item" data-tab="category">
+                <i class="fas fa-tags"></i>
+                <span>Category</span>
+            </a>
+        </nav>
+    </div>
+    
+    <!-- Main Content -->
+    <div class="main-content">
+        <!-- Header -->
+        <div class="header">
+            <h1 class="page-title">Records</h1>
+            <div class="header-actions">
+                <button class="theme-toggle" id="themeToggle">
+                    <i class="fas fa-moon"></i>
+                </button>
+                <a href="{{ url_for('logout') }}" class="btn btn-outline">
+                    <i class="fas fa-sign-out-alt"></i>
+                    Logout
+                </a>
+            </div>
+        </div>
+        
+        <!-- Content Area -->
+        <div class="content">
+            <!-- Records Tab -->
+            <div class="tab-content active" id="records-tab">
+                <div class="summary-cards">
+                    <div class="summary-card income">
+                        <div class="card-icon">
+                            <i class="fas fa-arrow-up"></i>
+                        </div>
+                        <div class="card-content">
+                            <h3>Total Income</h3>
+                            <p class="amount" id="totalIncome">₹0.00</p>
+                            <small>This Month</small>
+                        </div>
+                    </div>
+                    <div class="summary-card expense">
+                        <div class="card-icon">
+                            <i class="fas fa-arrow-down"></i>
+                        </div>
+                        <div class="card-content">
+                            <h3>Total Expense</h3>
+                            <p class="amount" id="totalExpense">₹0.00</p>
+                            <small>This Month</small>
+                        </div>
+                    </div>
+                    <div class="summary-card saving">
+                        <div class="card-icon">
+                            <i class="fas fa-piggy-bank"></i>
+                        </div>
+                        <div class="card-content">
+                            <h3>Total Saving</h3>
+                            <p class="amount" id="totalSaving">₹0.00</p>
+                            <small>This Month</small>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="transactions-section">
+                    <div class="section-header">
+                        <h2>Recent Transactions</h2>
+                    </div>
+                    <div class="transactions-list" id="transactionsList">
+                        <div class="loading-message">Loading transactions...</div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Analysis Tab -->
+            <div class="tab-content" id="analysis-tab">
+                <div class="summary-cards">
+                    <div class="summary-card income">
+                        <div class="card-icon">
+                            <i class="fas fa-arrow-up"></i>
+                        </div>
+                        <div class="card-content">
+                            <h3>Total Income</h3>
+                            <p class="amount" id="analysisIncome">₹0.00</p>
+                            <small>This Month</small>
+                        </div>
+                    </div>
+                    <div class="summary-card expense">
+                        <div class="card-icon">
+                            <i class="fas fa-arrow-down"></i>
+                        </div>
+                        <div class="card-content">
+                            <h3>Total Expense</h3>
+                            <p class="amount" id="analysisExpense">₹0.00</p>
+                            <small>This Month</small>
+                        </div>
+                    </div>
+                    <div class="summary-card saving">
+                        <div class="card-icon">
+                            <i class="fas fa-piggy-bank"></i>
+                        </div>
+                        <div class="card-content">
+                            <h3>Total Saving</h3>
+                            <p class="amount" id="analysisSaving">₹0.00</p>
+                            <small>This Month</small>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="analysis-controls">
+                    <select id="analysisType" class="form-select">
+                        <option value="expense_overview">Expense Overview</option>
+                        <option value="income_overview">Income Overview</option>
+                        <option value="expense_flow">Expense Flow</option>
+                        <option value="income_flow">Income Flow</option>
+                    </select>
+                </div>
+                
+                <div class="chart-container">
+                    <canvas id="analysisChart"></canvas>
+                </div>
+            </div>
+            
+            <!-- Budget Tab -->
+            <div class="tab-content" id="budget-tab">
+                <div class="summary-cards">
+                    <div class="summary-card income">
+                        <div class="card-icon">
+                            <i class="fas fa-arrow-up"></i>
+                        </div>
+                        <div class="card-content">
+                            <h3>Total Income</h3>
+                            <p class="amount" id="budgetIncome">₹0.00</p>
+                            <small>So Far</small>
+                        </div>
+                    </div>
+                    <div class="summary-card expense">
+                        <div class="card-icon">
+                            <i class="fas fa-arrow-down"></i>
+                        </div>
+                        <div class="card-content">
+                            <h3>Total Expense</h3>
+                            <p class="amount" id="budgetExpense">₹0.00</p>
+                            <small>So Far</small>
+                        </div>
+                    </div>
+                    <div class="summary-card saving">
+                        <div class="card-icon">
+                            <i class="fas fa-piggy-bank"></i>
+                        </div>
+                        <div class="card-content">
+                            <h3>Total Saving</h3>
+                            <p class="amount" id="budgetSaving">₹0.00</p>
+                            <small>So Far</small>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="budget-section">
+                    <div class="section-header">
+                        <h2>Budget Management</h2>
+                    </div>
+                    <div class="budget-categories" id="budgetCategories">
+                        <div class="loading-message">Loading budget data...</div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Account Tab -->
+            <div class="tab-content" id="account-tab">
+                <div class="summary-cards">
+                    <div class="summary-card income">
+                        <div class="card-icon">
+                            <i class="fas fa-arrow-up"></i>
+                        </div>
+                        <div class="card-content">
+                            <h3>Total Income</h3>
+                            <p class="amount" id="accountIncome">₹0.00</p>
+                            <small>So Far</small>
+                        </div>
+                    </div>
+                    <div class="summary-card expense">
+                        <div class="card-icon">
+                            <i class="fas fa-arrow-down"></i>
+                        </div>
+                        <div class="card-content">
+                            <h3>Total Expense</h3>
+                            <p class="amount" id="accountExpense">₹0.00</p>
+                            <small>So Far</small>
+                        </div>
+                    </div>
+                    <div class="summary-card saving">
+                        <div class="card-icon">
+                            <i class="fas fa-piggy-bank"></i>
+                        </div>
+                        <div class="card-content">
+                            <h3>Total Saving</h3>
+                            <p class="amount" id="accountSaving">₹0.00</p>
+                            <small>So Far</small>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="accounts-section">
+                    <div class="section-header">
+                        <h2>Your Accounts</h2>
+                    </div>
+                    <div class="accounts-grid" id="accountsGrid">
+                        <div class="loading-message">Loading accounts...</div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Category Tab -->
+            <div class="tab-content" id="category-tab">
+                <div class="categories-section">
+                    <div class="category-group">
+                        <h3>Income Categories</h3>
+                        <div class="categories-list" id="incomeCategories">
+                            <div class="loading-message">Loading categories...</div>
+                        </div>
+                        <button class="btn btn-outline add-category-btn" onclick="addCategory('income')">
+                            <i class="fas fa-plus"></i> Add Income Category
+                        </button>
+                    </div>
+                    
+                    <div class="category-group">
+                        <h3>Expense Categories</h3>
+                        <div class="categories-list" id="expenseCategories">
+                            <div class="loading-message">Loading categories...</div>
+                        </div>
+                        <button class="btn btn-outline add-category-btn" onclick="addCategory('expense')">
+                            <i class="fas fa-plus"></i> Add Expense Category
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Add Transaction Button -->
+    <button class="fab" id="addTransactionBtn">
+        <i class="fas fa-plus"></i>
+    </button>
+</div>
+
+<!-- Add Transaction Modal -->
+<div class="modal" id="addTransactionModal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h2>Add Transaction</h2>
+            <button class="modal-close" onclick="closeModal('addTransactionModal')">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        
+        <div class="transaction-type-selector">
+            <button class="type-btn active" data-type="expense">
+                <i class="fas fa-arrow-down"></i>
+                <span>Expense</span>
+            </button>
+            <button class="type-btn" data-type="income">
+                <i class="fas fa-arrow-up"></i>
+                <span>Income</span>
+            </button>
+            <button class="type-btn" data-type="transfer">
+                <i class="fas fa-exchange-alt"></i>
+                <span>Transfer</span>
+            </button>
+        </div>
+        
+        <form id="transactionForm">
+            <div class="form-group">
+                <label for="transactionAccount">From Account</label>
+                <select id="transactionAccount" name="account_id" required>
+                    <option value="">Select Account</option>
+                </select>
+            </div>
+            
+            <div class="form-group" id="categoryGroup">
+                <label for="transactionCategory">Category</label>
+                <select id="transactionCategory" name="category_id" required>
+                    <option value="">Select Category</option>
+                </select>
+            </div>
+            
+            <div class="form-group" id="toAccountGroup" style="display: none;">
+                <label for="toAccount">To Account</label>
+                <select id="toAccount" name="to_account_id">
+                    <option value="">Select Account</option>
+                </select>
+            </div>
+            
+            <div class="form-group">
+                <label for="transactionAmount">Amount (₹)</label>
+                <input type="number" id="transactionAmount" name="amount" step="0.01" min="0.01" required>
+            </div>
+            
+            <div class="form-actions">
+                <button type="button" class="btn btn-outline" onclick="closeModal('addTransactionModal')">Cancel</button>
+                <button type="submit" class="btn btn-primary">Add Transaction</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Add Account Modal -->
+<div class="modal" id="addAccountModal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h2>Add Personal Account</h2>
+            <button class="modal-close" onclick="closeModal('addAccountModal')">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        
+        <form id="accountForm">
+            <div class="form-group">
+                <label for="accountName">Account Name</label>
+                <input type="text" id="accountName" name="name" required>
+            </div>
+            
+            <div class="form-group">
+                <label for="initialAmount">Initial Amount (₹)</label>
+                <input type="number" id="initialAmount" name="initial_amount" step="0.01" value="0">
+            </div>
+            
+            <div class="form-actions">
+                <button type="button" class="btn btn-outline" onclick="closeModal('addAccountModal')">Cancel</button>
+                <button type="submit" class="btn btn-primary">Save Account</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/dashboard.js') }}"></script>
+{% endblock %}
