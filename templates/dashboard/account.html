@@ -1,0 +1,235 @@
+{% extends "dashboard/base.html" %}
+
+{% block page_title %}Account{% endblock %}
+
+{% block content %}
+<div class="summary-cards">
+    <div class="summary-card income">
+        <div class="card-icon">
+            <i class="fas fa-arrow-up"></i>
+        </div>
+        <div class="card-content">
+            <h3>Total Income</h3>
+            <p class="amount" id="totalIncome">₹0.00</p>
+            <small>So Far</small>
+        </div>
+    </div>
+    <div class="summary-card expense">
+        <div class="card-icon">
+            <i class="fas fa-arrow-down"></i>
+        </div>
+        <div class="card-content">
+            <h3>Total Expense</h3>
+            <p class="amount" id="totalExpense">₹0.00</p>
+            <small>So Far</small>
+        </div>
+    </div>
+    <div class="summary-card saving">
+        <div class="card-icon">
+            <i class="fas fa-piggy-bank"></i>
+        </div>
+        <div class="card-content">
+            <h3>Total Saving</h3>
+            <p class="amount" id="totalSaving">₹0.00</p>
+            <small>So Far</small>
+        </div>
+    </div>
+</div>
+
+<div class="accounts-section">
+    <div class="section-header">
+        <h2>Your Accounts</h2>
+        <button class="btn btn-primary" onclick="openModal('addAccountModal')">
+            <i class="fas fa-plus"></i>
+            Add Personal Account
+        </button>
+    </div>
+    <div class="accounts-grid" id="accountsGrid">
+        <div class="loading-message">Loading accounts...</div>
+    </div>
+</div>
+
+<!-- Add Account Modal -->
+<div class="modal" id="addAccountModal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h2>Add Personal Account</h2>
+            <button class="modal-close" onclick="closeModal('addAccountModal')">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        
+        <form id="accountForm">
+            <div class="form-group">
+                <label for="accountName">Account Name</label>
+                <input type="text" id="accountName" name="name" required>
+            </div>
+            
+            <div class="form-group">
+                <label for="initialAmount">Initial Amount (₹)</label>
+                <input type="number" id="initialAmount" name="initial_amount" step="0.01" value="0">
+            </div>
+            
+            <div class="form-actions">
+                <button type="button" class="btn btn-outline" onclick="closeModal('addAccountModal')">Cancel</button>
+                <button type="submit" class="btn btn-primary">Save Account</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+let accounts = [];
+
+document.addEventListener('DOMContentLoaded', function() {
+    loadData();
+    setupAccountForm();
+});
+
+async function loadData() {
+    try {
+        // Load summary data
+        const summaryResponse = await fetch('/api/dashboard_data');
+        const summaryData = await summaryResponse.json();
+        updateSummaryCards(summaryData);
+
+        // Load accounts
+        const accountsResponse = await fetch('/api/accounts');
+        accounts = await accountsResponse.json();
+        
+        loadAccountData();
+    } catch (error) {
+        console.error('Failed to load data:', error);
+        showNotification('Failed to load data', 'error');
+    }
+}
+
+function updateSummaryCards(data) {
+    document.getElementById('totalIncome').textContent = formatCurrency(data.total_income);
+    document.getElementById('totalExpense').textContent = formatCurrency(data.total_expense);
+    document.getElementById('totalSaving').textContent = formatCurrency(data.total_saving);
+    
+    const savingElement = document.getElementById('totalSaving');
+    savingElement.className = `amount ${data.total_saving >= 0 ? 'text-success' : 'text-danger'}`;
+}
+
+function setupAccountForm() {
+    const accountForm = document.getElementById('accountForm');
+    if (accountForm) {
+        accountForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            await submitAccount();
+        });
+    }
+}
+
+function loadAccountData() {
+    const accountsGrid = document.getElementById('accountsGrid');
+
+    if (accounts.length === 0) {
+        accountsGrid.innerHTML = `
+            <div class="empty-message">
+                <i class="fas fa-credit-card"></i>
+                <p>No accounts found</p>
+                <small>Add your first account using the button above</small>
+            </div>
+        `;
+        return;
+    }
+
+    accountsGrid.innerHTML = accounts.map(account => `
+        <div class="account-card">
+            <div class="account-header">
+                <h4>${account.name}</h4>
+                <span class="account-type">${account.type.toUpperCase()}</span>
+            </div>
+            <div class="account-balance ${account.balance >= 0 ? 'positive' : 'negative'}">
+                ${formatCurrency(account.balance)}
+            </div>
+            ${account.type === 'personal' ? `
+                <div class="account-actions">
+                    <button class="btn btn-sm btn-outline btn-danger" onclick="deleteAccount(${account.id})">
+                        <i class="fas fa-trash"></i> Delete
+                    </button>
+                </div>
+            ` : ''}
+        </div>
+    `).join('');
+
+    // Add "Add Account" button
+    accountsGrid.innerHTML += `
+        <div class="account-card add-account-card">
+            <button class="btn btn-primary" onclick="openModal('addAccountModal')">
+                <i class="fas fa-plus"></i>
+                Add Personal Account
+            </button>
+        </div>
+    `;
+}
+
+async function submitAccount() {
+    const form = document.getElementById('accountForm');
+    const formData = new FormData(form);
+
+    const accountData = {
+        name: formData.get('name'),
+        initial_amount: parseFloat(formData.get('initial_amount')) || 0,
+        account_type: 'personal'
+    };
+
+    try {
+        const response = await fetch('/api/accounts', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(accountData)
+        });
+
+        const result = await response.json();
+
+        if (result.success) {
+            showNotification('Account added successfully', 'success');
+            closeModal('addAccountModal');
+            form.reset();
+            
+            // Reload data
+            const accountsResponse = await fetch('/api/accounts');
+            accounts = await accountsResponse.json();
+            loadAccountData();
+        } else {
+            showNotification(result.error || 'Failed to add account', 'error');
+        }
+    } catch (error) {
+        console.error('Account submission error:', error);
+        showNotification('Failed to add account', 'error');
+    }
+}
+
+async function deleteAccount(accountId) {
+    if (!confirm('Are you sure you want to delete this account? All transactions will be affected.')) {
+        return;
+    }
+
+    try {
+        const response = await fetch(`/api/accounts/${accountId}`, {
+            method: 'DELETE'
+        });
+
+        const result = await response.json();
+
+        if (result.success) {
+            showNotification('Account deleted successfully', 'success');
+            const accountsResponse = await fetch('/api/accounts');
+            accounts = await accountsResponse.json();
+            loadAccountData();
+        } else {
+            showNotification(result.error || 'Failed to delete account', 'error');
+        }
+    } catch (error) {
+        console.error('Failed to delete account:', error);
+        showNotification('Failed to delete account', 'error');
+    }
+}
+</script>
+{% endblock %}
