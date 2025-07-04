@@ -3,7 +3,7 @@
 
 SmartTracker uses a `.env` file to securely store credentials. Below are required keys:
 
-| Key               | Description                          |
+| Key              | Description                          |
 |------------------|--------------------------------------|
 | FLASK_SECRET_KEY | Secret key for Flask sessions        |
 | DB_PASSWORD      | MySQL Password                       |
