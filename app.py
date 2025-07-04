@@ -39,17 +39,17 @@ app.secret_key = os.getenv("SECRET_KEY")
 # Database configuration
 DB_CONFIG = {
     'host': 'localhost',
-    'user': 'root',
-    'password': os.getenv("DB_PASSWORD"),  # Change this
-    'database': 'expense_tracker1'
+    'user': 'root', # Change this
+    'password': os.getenv("DB_PASSWORD"), 
+    'database': 'expense_tracker'
 }
 
 # Email configuration
 EMAIL_CONFIG = {
     'smtp_server': 'smtp.gmail.com',
     'smtp_port': 587,
-    'email': os.getenv("EMAIL"),  # Change this
-    'password': os.getenv("EMAIL_PASSWORD")   # Change this
+    'email': os.getenv("EMAIL"), 
+    'password': os.getenv("EMAIL_PASSWORD")   
 }
 
 # Initialize APScheduler
