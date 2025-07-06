@@ -18,38 +18,33 @@ SmartTracker/
 │   ├── signup.html
 │   ├── base.html             # Common layout for all pages
 │   ├── dashboard/            # 📂 Dashboard-related views
-│   │   ├── index.html
-│   │   ├── records.html
-│   │   ├── analysis.html
-│   │   ├── budget.html
-│   │   ├── account.html
-│   │   ├── base.html
-│   │   ├── category.html
-│   │   ├── main.html
-│   │   ├──reports.html
-│   │   └── README.md
-│   └ README.md
+│       ├── index.html
+│       ├── records.html
+│       ├── analysis.html
+│       ├── budget.html
+│       ├── account.html
+│       ├── base.html
+│       ├── category.html
+│       ├── main.html
+│       └── reports.html│   
 │
 ├── static/                   # 🎨 Static files (CSS, JS, images)
 │   ├── css/
 │   │   ├── style.css
 |   |   ├── reports.css
 |   |   ├── notifications.css
-|   |   ├── dashboard.css
-|   |   └── README.md
+|   |   └── dashboard.css
 │   ├── js/
 |   |   ├── dashboard-common.js
 |   |   ├── reports.js
 |   |   ├── script.js
-|   |   ├── dashboard.js
-│   │   └── README.md
+│   │   └── dashboard.js
 │   └── images/
 │       └── logo.png
 │
 ├── scripts/                  # 🛠️ Utility scripts (e.g., SQL, backup)
 │   ├── database_setup.sql
-|   ├── add_user_setting_api.sql
-│   └── README.md
+│   └── add_user_setting_api.sql
 │
 ├── docs/                     # 📚 Documentation files
 │   ├── setup-guide.md
