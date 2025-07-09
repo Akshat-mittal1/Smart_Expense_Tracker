@@ -2,7 +2,7 @@
 
 SmartTracker is a modern, intelligent, and user-friendly **expense tracking system** designed using Python, MySQL, HTML, CSS, and JavaScript — crafted to give you **complete control over your finances**.  
 
-Developed by [**Akshat Mittal**](https://github.com/akshat-mittal1), **Founder & CEO of Cynaloras**.
+Developed by [**Akshat Mittal**](https://github.com/akshat-mittal1), **Founder & CEO of [Cynalors](https://github.com/cynaloras)**.
 
 ---
 
@@ -79,7 +79,8 @@ SmartTracker supports:
 
 > Built with ❤️ by  
 > **Akshat Mittal**  
-> Founder, CEO & Owner of **Cynaloras**
+> Founder, CEO & Owner of **[Cynalors](https://github.com/cynaloras)**
+
 
 ---
 
