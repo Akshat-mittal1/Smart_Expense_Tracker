@@ -89,3 +89,4 @@ SmartTracker supports:
 Licensed under the MIT License. See [LICENSE.md](LICENSE.md)
 
 ---
+> 🌟 **If you find Smart Expense Tracker useful, consider giving it a star!**   ,It motivates me to keep improving and building more open-source tools 🚀
